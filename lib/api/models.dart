@@ -70,6 +70,7 @@ class Category {
   final String image;
   final int productsCount;
   Category({required this.id, required this.name, required this.slug, required this.image, required this.productsCount});
+  bool get showInMenu => true;
   factory Category.fromJson(Map<String, dynamic> j) => Category(
         id: (j['id'] as num).toInt(),
         name: j['name'] ?? '',
