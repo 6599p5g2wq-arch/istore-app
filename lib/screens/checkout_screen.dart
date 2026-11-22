@@ -72,6 +72,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             {
               'id': it.product.id,
               'qty': it.qty,
+              'variant_id': it.variantId,
             }
         ],
       });

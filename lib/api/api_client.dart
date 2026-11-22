@@ -161,10 +161,11 @@ class ApiClient {
   Future<List<Map<String, dynamic>>> fetchServerCart() async =>
       ((await _request('GET', '/cart.php'))['items'] as List).cast<Map<String, dynamic>>();
 
-  Future<void> cartSetQty(int productId, int qty, {bool add = false}) async =>
-      _request(add ? 'POST' : 'PUT', '/cart.php', body: {'product_id': productId, 'qty': qty});
+  Future<void> cartSetQty(int productId, int qty, {bool add = false, int variantId = 0}) async =>
+      _request(add ? 'POST' : 'PUT', '/cart.php', body: {'product_id': productId, 'qty': qty, 'variant_id': variantId});
 
-  Future<void> cartRemove(int productId) async => _request('DELETE', '/cart.php', query: {'product_id': '$productId'});
+  Future<void> cartRemove(int productId, {int variantId = 0}) async =>
+      _request('DELETE', '/cart.php', query: {'product_id': '$productId', 'variant_id': '$variantId'});
 
   Future<void> cartClear() => _request('DELETE', '/cart.php');
 
@@ -184,7 +185,7 @@ class ApiClient {
     String address = '',
     String notes = '',
     String coupon = '',
-    required List<({int id, int qty})> items,
+    required List<({int id, int qty, int variantId})> items,
   }) async {
     final d = await _request('POST', '/orders.php', body: {
       'name': name,
@@ -193,7 +194,7 @@ class ApiClient {
       'address': address,
       'notes': notes,
       'coupon': coupon,
-      'items': items.map((i) => {'id': i.id, 'qty': i.qty}).toList(),
+      'items': items.map((i) => {'id': i.id, 'qty': i.qty, 'variant_id': i.variantId}).toList(),
     });
     return (code: d['code'] as String, total: (d['total'] as num).toDouble());
   }

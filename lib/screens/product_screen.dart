@@ -21,7 +21,38 @@ class _ProductScreenState extends State<ProductScreen> {
   String? _error;
   int _imageIndex = 0;
   int _qty = 1;
+  final Map<String, String> _selected = {};
   List<Review> _reviews = [];
+
+  ProductVariant? _findVariant(Product p) {
+    if (p.options.isEmpty) return null;
+    if (_selected.length < p.options.length) return null;
+    for (final v in p.variants) {
+      var ok = true;
+      for (final o in p.options) {
+        if (v.options[o.name] != _selected[o.name]) { ok = false; break; }
+      }
+      if (ok) return v;
+    }
+    return null;
+  }
+
+  bool _comboAvailable(Product p, String optName, String value) {
+    final probe = Map<String, String>.from(_selected)..[optName] = value;
+    return p.variants.any((v) {
+      for (final o in p.options) {
+        final sel = probe[o.name];
+        if (sel != null && v.options[o.name] != sel) return false;
+      }
+      return v.stock > 0;
+    });
+  }
+
+  double _displayPrice(Product p) => _findVariant(p)?.price ?? p.price;
+  int _displayStock(Product p) {
+    final v = _findVariant(p);
+    return v?.stock ?? p.stock;
+  }
   final _page = PageController();
 
   @override
@@ -130,7 +161,7 @@ class _ProductScreenState extends State<ProductScreen> {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  Text(fmtPrice(p.price), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppTheme.accent2)),
+                  Text(fmtPrice(_displayPrice(p)), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppTheme.accent2)),
                   if (p.onSale) ...[
                     const SizedBox(width: 10),
                     Text(fmtPrice(p.oldPrice!),
@@ -141,14 +172,17 @@ class _ProductScreenState extends State<ProductScreen> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(p.outOfStock ? Icons.cancel_outlined : Icons.check_circle_outline,
-                      size: 18, color: p.outOfStock ? Colors.redAccent : Colors.greenAccent),
+                  Icon(_displayStock(p) <= 0 ? Icons.cancel_outlined : Icons.check_circle_outline,
+                      size: 18, color: _displayStock(p) <= 0 ? Colors.redAccent : Colors.greenAccent),
                   const SizedBox(width: 6),
-                  Text(p.outOfStock ? 'نفد من المخزون' : 'متوفر في المخزون',
-                      style: TextStyle(fontWeight: FontWeight.w700, color: p.outOfStock ? Colors.redAccent : Colors.greenAccent)),
+                  Text(_findVariant(p) != null && _displayStock(p) <= 0
+                      ? 'هذه التوليفة نفدت'
+                      : (_displayStock(p) <= 0 ? 'نفد من المخزون' : 'متوفر في المخزون'),
+                      style: TextStyle(fontWeight: FontWeight.w700, color: _displayStock(p) <= 0 ? Colors.redAccent : Colors.greenAccent)),
                 ],
               ),
               const SizedBox(height: 8),
+              if (p.hasVariants) _variantPicker(p),
               // الكمية
               Row(
                 children: [
@@ -202,6 +236,69 @@ class _ProductScreenState extends State<ProductScreen> {
     );
   }
 
+  Widget _variantPicker(Product p) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final o in p.options) ...[
+          const SizedBox(height: 10),
+          Text(o.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final v in o.values)
+                Builder(builder: (_) {
+                  final active = _selected[o.name] == v;
+                  final avail = _comboAvailable(p, o.name, v);
+                  return GestureDetector(
+                    onTap: () => setState(() {
+                      if (active) {
+                        _selected.remove(o.name);
+                      } else {
+                        _selected[o.name] = v;
+                      }
+                      _qty = 1;
+                      final pv = _findVariant(p);
+                      if (pv?.image != null && pv!.image!.isNotEmpty) {
+                        final idx = p.images.indexOf(pv.image!);
+                        if (idx >= 0) _page.jumpToPage(idx);
+                      }
+                    }),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: active ? AppTheme.accent2 : AppTheme.card,
+                        borderRadius: BorderRadius.circular(99),
+                        border: Border.all(color: active ? AppTheme.accent2 : AppTheme.border),
+                      ),
+                      child: Text(
+                        v,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          color: !avail && !active ? AppTheme.textFaint : (active ? Colors.black : AppTheme.text),
+                          decoration: !avail && !active ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+            ],
+          ),
+        ],
+        if (_selected.length < p.options.length)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Text('اختر ${p.options.map((o) => o.name).join(' و')} أولاً',
+                style: const TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.w700)),
+          ),
+        const SizedBox(height: 6),
+      ],
+    );
+  }
+
   Widget _qtyBtn(IconData icon, VoidCallback onTap) => InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
@@ -227,7 +324,7 @@ class _ProductScreenState extends State<ProductScreen> {
         ),
         child: Row(
           children: [
-            if (p.outOfStock)
+            if (_displayStock(p) <= 0 && !p.hasVariants)
               Expanded(
                 child: GlowButton(
                   label: 'أعلمني عند التوفر',
@@ -237,19 +334,35 @@ class _ProductScreenState extends State<ProductScreen> {
               )
             else
               Expanded(
-                child: GlowButton(
-                  label: 'أضف إلى السلة • ${fmtPrice(p.price * _qty)}',
-                  icon: Icons.shopping_bag_outlined,
-                  onPressed: () {
-                    context.read<CartProvider>().add(p, qty: _qty);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('أُضيف إلى السلة'),
-                        action: SnackBarAction(label: 'عرض السلة', textColor: AppTheme.accent2, onPressed: () => context.go('/cart')),
-                      ),
-                    );
-                  },
-                ),
+                child: Builder(builder: (_) {
+                  final v = _findVariant(p);
+                  final needsSelection = p.hasVariants && v == null;
+                  final canAdd = !needsSelection && (v?.stock ?? p.stock) > 0;
+                  return GlowButton(
+                    label: needsSelection
+                        ? 'اختر المواصفات أولاً'
+                        : (canAdd ? 'أضف إلى السلة • ${fmtPrice(_displayPrice(p) * _qty)}' : 'نفدت الكمية'),
+                    icon: Icons.shopping_bag_outlined,
+                    onPressed: canAdd
+                        ? () {
+                            context.read<CartProvider>().add(
+                                  p,
+                                  qty: _qty,
+                                  variantId: v?.id ?? 0,
+                                  variantLabel: v?.label ?? '',
+                                  priceOverride: v?.price,
+                                  stockOverride: v?.stock,
+                                );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('أُضيف إلى السلة'),
+                                action: SnackBarAction(label: 'عرض السلة', textColor: AppTheme.accent2, onPressed: () => context.go('/cart')),
+                              ),
+                            );
+                          }
+                        : null,
+                  );
+                }),
               ),
           ],
         ),

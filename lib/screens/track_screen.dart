@@ -158,7 +158,7 @@ class _TrackScreenState extends State<TrackScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 3),
                 child: Row(
                   children: [
-                    Expanded(child: Text('${it.name} × ${it.qty}', style: const TextStyle(fontSize: 13, color: AppTheme.textDim))),
+                    Expanded(child: Text(it.variantLabel.isNotEmpty ? '${it.name} · ${it.variantLabel} × ${it.qty}' : '${it.name} × ${it.qty}', style: const TextStyle(fontSize: 13, color: AppTheme.textDim))),
                     Text(fmtPrice(it.price * it.qty), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                   ],
                 ),

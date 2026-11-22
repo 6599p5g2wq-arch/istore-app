@@ -9,17 +9,25 @@ import '../api/models.dart';
 /// عنصر سلة محلي
 class CartItem {
   final Product product;
+  final int variantId;
+  final String variantLabel;
+  final double? priceOverride;
   int qty;
-  CartItem({required this.product, required this.qty});
+  CartItem({required this.product, required this.qty, this.variantId = 0, this.variantLabel = '', this.priceOverride});
+
+  String get key => '${product.id}:$variantId';
+  double get price => priceOverride ?? product.price;
 
   Map<String, dynamic> toJson() => {
         'id': product.id,
         'qty': qty,
         'name': product.name,
         'slug': product.slug,
-        'price': product.price,
+        'price': price,
         'image': product.image,
         'stock': product.stock,
+        'variant_id': variantId,
+        'variant_label': variantLabel,
       };
 }
 
@@ -78,17 +86,17 @@ class CartProvider extends ChangeNotifier {
 
   CartProvider({ApiClient? client}) : api = client ?? sharedApi;
 
-  double get total => items.fold(0, (s, i) => s + i.product.price * i.qty);
+  double get total => items.fold(0, (s, i) => s + i.price * i.qty);
   double get subtotal => total;
 
   Future<void> setQtyAt(int index, int qty) async {
     if (index < 0 || index >= items.length) return;
-    await setQty(items[index].product.id, qty);
+    await setQty(items[index].product.id, qty, variantId: items[index].variantId);
   }
 
   Future<void> removeAt(int index) async {
     if (index < 0 || index >= items.length) return;
-    await setQty(items[index].product.id, 0);
+    await setQty(items[index].product.id, 0, variantId: items[index].variantId);
   }
 
   Future<void> clearLocal() async {
@@ -111,6 +119,8 @@ class CartProvider extends ChangeNotifier {
             image: j['image'] ?? '', images: const [], badge: '', featured: false, rating: 0,
           ),
           qty: j['qty'] ?? 1,
+          variantId: (j['variant_id'] as num?)?.toInt() ?? 0,
+          variantLabel: j['variant_label'] ?? '',
         ));
       }
     } catch (_) {}
@@ -123,23 +133,24 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> add(Product p, {int qty = 1}) async {
-    final i = items.indexWhere((e) => e.product.id == p.id);
+  Future<void> add(Product p, {int qty = 1, int variantId = 0, String variantLabel = '', double? priceOverride, int? stockOverride}) async {
+    final i = items.indexWhere((e) => e.product.id == p.id && e.variantId == variantId);
+    final maxStock = stockOverride ?? (p.stock > 0 ? p.stock : 99);
     if (i >= 0) {
-      items[i].qty = (items[i].qty + qty).clamp(1, p.stock > 0 ? p.stock : 99);
+      items[i].qty = (items[i].qty + qty).clamp(1, maxStock);
     } else {
-      items.add(CartItem(product: p, qty: qty));
+      items.add(CartItem(product: p, qty: qty, variantId: variantId, variantLabel: variantLabel, priceOverride: priceOverride));
     }
     await _save();
     if (api.token != null) {
       try {
-        await api.cartSetQty(p.id, qty, add: true);
+        await api.cartSetQty(p.id, qty, add: true, variantId: variantId);
       } catch (_) {}
     }
   }
 
-  Future<void> setQty(int productId, int qty) async {
-    final i = items.indexWhere((e) => e.product.id == productId);
+  Future<void> setQty(int productId, int qty, {int variantId = 0}) async {
+    final i = items.indexWhere((e) => e.product.id == productId && e.variantId == variantId);
     if (i < 0) return;
     if (qty <= 0) {
       items.removeAt(i);
@@ -149,7 +160,7 @@ class CartProvider extends ChangeNotifier {
     await _save();
     if (api.token != null) {
       try {
-        qty <= 0 ? await api.cartRemove(productId) : await api.cartSetQty(productId, qty);
+        qty <= 0 ? await api.cartRemove(productId, variantId: variantId) : await api.cartSetQty(productId, qty, variantId: variantId);
       } catch (_) {}
     }
   }
@@ -170,11 +181,17 @@ class CartProvider extends ChangeNotifier {
     try {
       final remote = await api.fetchServerCart();
       for (final r in remote) {
-        final i = items.indexWhere((e) => e.product.id == (r['id'] as num).toInt());
+        final vid = (r['variant_id'] as num?)?.toInt() ?? 0;
+        final i = items.indexWhere((e) => e.product.id == (r['id'] as num).toInt() && e.variantId == vid);
         if (i >= 0) {
           items[i].qty = (r['qty'] as num).toInt();
         } else {
-          items.add(CartItem(product: Product.fromJson(r), qty: (r['qty'] as num).toInt()));
+          items.add(CartItem(
+            product: Product.fromJson(r),
+            qty: (r['qty'] as num).toInt(),
+            variantId: vid,
+            variantLabel: r['variant_label'] ?? '',
+          ));
         }
       }
       await _save();

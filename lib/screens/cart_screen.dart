@@ -144,8 +144,13 @@ class _CartScreenState extends State<CartScreen> {
                 children: [
                   Text(item.product.name, maxLines: 2, overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, height: 1.4)),
+                  if (item.variantLabel.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(item.variantLabel, style: const TextStyle(color: AppTheme.textFaint, fontSize: 11, fontWeight: FontWeight.w700)),
+                    ),
                   const SizedBox(height: 6),
-                  Text(fmtPrice(item.product.price * item.qty), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
+                  Text(fmtPrice(item.price * item.qty), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
                 ],
               ),
             ),

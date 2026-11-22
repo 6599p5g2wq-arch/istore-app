@@ -1,6 +1,34 @@
 /// نماذج البيانات المطابقة لردود api/v1.
 library;
 
+class ProductOption {
+  final String name;
+  final List<String> values;
+  ProductOption({required this.name, required this.values});
+  factory ProductOption.fromJson(Map<String, dynamic> j) => ProductOption(
+        name: j['name'] ?? '',
+        values: (j['values'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      );
+}
+
+class ProductVariant {
+  final int id;
+  final String label;
+  final Map<String, String> options;
+  final double? price;
+  final int stock;
+  final String? image;
+  ProductVariant({required this.id, required this.label, required this.options, this.price, required this.stock, this.image});
+  factory ProductVariant.fromJson(Map<String, dynamic> j) => ProductVariant(
+        id: (j['id'] as num).toInt(),
+        label: j['label'] ?? '',
+        options: (j['options'] as Map?)?.map((k, v) => MapEntry(k.toString(), v.toString())) ?? const {},
+        price: j['price'] == null ? null : (j['price'] as num).toDouble(),
+        stock: (j['stock'] as num?)?.toInt() ?? 0,
+        image: j['image']?.toString(),
+      );
+}
+
 class Product {
   final int id;
   final String name;
@@ -18,6 +46,8 @@ class Product {
   final String? categoryName;
   final String? brand;
   final String? brandName;
+  final List<ProductOption> options;
+  final List<ProductVariant> variants;
 
   Product({
     required this.id,
@@ -36,6 +66,8 @@ class Product {
     this.categoryName,
     this.brand,
     this.brandName,
+    this.options = const [],
+    this.variants = const [],
   });
 
   factory Product.fromJson(Map<String, dynamic> j) => Product(
@@ -55,8 +87,11 @@ class Product {
         categoryName: j['category_name'],
         brand: j['brand'],
         brandName: j['brand_name'],
+        options: (j['options'] as List?)?.map((e) => ProductOption.fromJson(e)).toList() ?? const [],
+        variants: (j['variants'] as List?)?.map((e) => ProductVariant.fromJson(e)).toList() ?? const [],
       );
 
+  bool get hasVariants => options.isNotEmpty;
   bool get onSale => oldPrice != null && oldPrice! > price;
   bool get outOfStock => stock <= 0;
   String get desc => description;
@@ -182,11 +217,13 @@ class OrderLine {
   final String name;
   final int qty;
   final double price;
-  OrderLine({required this.name, required this.qty, required this.price});
+  final String variantLabel;
+  OrderLine({required this.name, required this.qty, required this.price, this.variantLabel = ''});
   factory OrderLine.fromJson(Map<String, dynamic> j) => OrderLine(
         name: j['name'] ?? '',
         qty: (j['qty'] as num?)?.toInt() ?? 1,
         price: (j['price'] as num?)?.toDouble() ?? 0,
+        variantLabel: j['variant_label'] ?? '',
       );
 }
 
