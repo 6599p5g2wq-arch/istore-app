@@ -1,17 +1,37 @@
-# istore
+# آي ستور — تطبيق Flutter
 
-A new Flutter project.
+تطبيق المتجر الرسمي (أندرويد) مبني بـ Flutter، عربي RTL بالكامل، متصل بواجهة REST API الخاصة بنسخة PHP من المتجر (`api/v1`).
 
-## Getting Started
+## المزايا
+- الرئيسية: سلايدر Hero متحرك + الفئات + أحدث المنتجات
+- المنتجات: بحث، فلترة بالفئة، ترتيب (الأحدث/الأكثر مبيعاً/السعر)، تحميل تدريجي
+- صفحة المنتج: معرض صور، التقييمات، تنبيه التوفر عند نفاد المخزون
+- السلة: محلية + مزامنة مع الخادم عند تسجيل الدخول، كوبونات خصم
+- إتمام الطلب: دفع عند الاستلام، 26 مدينة ليبية، رمز تتبع
+- تتبع الطلب بالرمز + رقم الهاتف، وسجل طلبات الحساب
+- حساب: تسجيل/دخول، المفضلة، تغيير كلمة المرور
+- التوكن محفوظ بأمان عبر flutter_secure_storage
 
-This project is a starting point for a Flutter application.
+## ربط التطبيق بالخادم
+عدّل `lib/config.dart` وضع رابط مجلد المتجر على الاستضافة:
+```dart
+static const String baseUrl = 'https://your-domain.com';
+```
+(التطبيق ينادي `$baseUrl/api/v1/...` — ضع رابط الجذر فقط.)
 
-A few resources to get you started if this is your first Flutter project:
+## البناء على ويندوز
+1. ثبّت Flutter SDK المستقر (3.50 أو أحدث) وأضف `flutter\bin` إلى PATH.
+2. ثبّت Android Studio (أو Android SDK + JDK 17).
+3. نفّذ `flutter doctor` وثبّت ما ينقص.
+4. داخل مجلد المشروع:
+   ```
+   flutter pub get
+   flutter build apk --release
+   ```
+5. الـ APK الناتج: `build\app\outputs\flutter-apk\app-release.apk`
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+بنية APK تجريبية (debug) تُبنى تلقائياً عبر GitHub Actions عند كل push (Artifacts).
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## ملاحظات
+- `android:usesCleartextTraffic="true"` مفعّل للتجربة المحلية عبر HTTP؛ مع استضافة HTTPS يمكن إزالته.
+- الحد الأدنى: Android 6.0 (minSdk 23).
